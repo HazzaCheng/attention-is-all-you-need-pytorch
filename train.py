@@ -253,14 +253,21 @@ def main():
     transformer = Transformer(
         opt.src_vocab_size,
         opt.trg_vocab_size,
+        # 源语言的 padding_idx，该 idx 的词的 embedding 全部赋值为0
         src_pad_idx=opt.src_pad_idx,
+        # 目标语言的 padding_idx，该 idx 的词的 embedding 全部赋值为0
         trg_pad_idx=opt.trg_pad_idx,
         trg_emb_prj_weight_sharing=opt.proj_share_weight,
         emb_src_trg_weight_sharing=opt.embs_share_weight,
+        # Q 和 K 的维度
         d_k=opt.d_k,
+        # V 的维度
         d_v=opt.d_v,
+        # 输入到最后分类模型的 dim
         d_model=opt.d_model,
+        # word embedding 的 dim
         d_word_vec=opt.d_word_vec,
+        # feed forward 层的 hidden unit 个数
         d_inner=opt.d_inner_hid,
         n_layers=opt.n_layers,
         n_head=opt.n_head,

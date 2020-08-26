@@ -16,10 +16,12 @@ class ScaledDotProductAttention(nn.Module):
 
         attn = torch.matmul(q / self.temperature, k.transpose(2, 3))
 
+        # 将 mask 赋值为负无穷
         if mask is not None:
             attn = attn.masked_fill(mask == 0, -1e9)
 
         attn = self.dropout(F.softmax(attn, dim=-1))
+        # 对 V 根据 softmax 加权求和
         output = torch.matmul(attn, v)
 
         return output, attn

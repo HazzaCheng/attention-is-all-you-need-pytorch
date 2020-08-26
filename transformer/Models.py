@@ -4,7 +4,6 @@ import torch.nn as nn
 import numpy as np
 from transformer.Layers import EncoderLayer, DecoderLayer
 
-
 __author__ = "Yu-Hsiang Huang"
 
 
@@ -15,8 +14,8 @@ def get_pad_mask(seq, pad_idx):
 def get_subsequent_mask(seq):
     ''' For masking out the subsequent info. '''
     sz_b, len_s = seq.size()
-    subsequent_mask = (1 - torch.triu(
-        torch.ones((1, len_s, len_s), device=seq.device), diagonal=1)).bool()
+    # triu 用来生成二维矩阵的上三角矩阵
+    subsequent_mask = (1 - torch.triu(torch.ones((1, len_s, len_s), device=seq.device), diagonal=1)).bool()
     return subsequent_mask
 
 
@@ -30,6 +29,7 @@ class PositionalEncoding(nn.Module):
 
     def _get_sinusoid_encoding_table(self, n_position, d_hid):
         ''' Sinusoid position encoding table '''
+
         # TODO: make it with torch instead of numpy
 
         def get_position_angle_vec(position):
@@ -55,8 +55,10 @@ class Encoder(nn.Module):
         super().__init__()
 
         self.src_word_emb = nn.Embedding(n_src_vocab, d_word_vec, padding_idx=pad_idx)
+        # 位置编码，最长长度为 n_position
         self.position_enc = PositionalEncoding(d_word_vec, n_position=n_position)
         self.dropout = nn.Dropout(p=dropout)
+        # stack encoder layers
         self.layer_stack = nn.ModuleList([
             EncoderLayer(d_model, d_inner, n_head, d_k, d_v, dropout=dropout)
             for _ in range(n_layers)])
@@ -67,11 +69,12 @@ class Encoder(nn.Module):
         enc_slf_attn_list = []
 
         # -- Forward
-        
+
         enc_output = self.dropout(self.position_enc(self.src_word_emb(src_seq)))
         enc_output = self.layer_norm(enc_output)
 
         for enc_layer in self.layer_stack:
+            # 上一个 encoder 输出的 Q 值作为下一个 encoder 输入的 Q 值
             enc_output, enc_slf_attn = enc_layer(enc_output, slf_attn_mask=src_mask)
             enc_slf_attn_list += [enc_slf_attn] if return_attns else []
 
@@ -106,6 +109,7 @@ class Decoder(nn.Module):
         dec_output = self.layer_norm(dec_output)
 
         for dec_layer in self.layer_stack:
+            # 使用 encoder 最后输出的 Q 值 作为每个 decoder 里 encoder-decoder attention 的 K 和 V 值，并且相同
             dec_output, dec_slf_attn, dec_enc_attn = dec_layer(
                 dec_output, enc_output, slf_attn_mask=trg_mask, dec_enc_attn_mask=src_mask)
             dec_slf_attn_list += [dec_slf_attn] if return_attns else []
@@ -145,11 +149,11 @@ class Transformer(nn.Module):
 
         for p in self.parameters():
             if p.dim() > 1:
-                nn.init.xavier_uniform_(p) 
+                nn.init.xavier_uniform_(p)
 
         assert d_model == d_word_vec, \
-        'To facilitate the residual connections, \
-         the dimensions of all module outputs shall be the same.'
+            'To facilitate the residual connections, \
+             the dimensions of all module outputs shall be the same.'
 
         self.x_logit_scale = 1.
         if trg_emb_prj_weight_sharing:
@@ -160,10 +164,10 @@ class Transformer(nn.Module):
         if emb_src_trg_weight_sharing:
             self.encoder.src_word_emb.weight = self.decoder.trg_word_emb.weight
 
-
     def forward(self, src_seq, trg_seq):
 
         src_mask = get_pad_mask(src_seq, self.src_pad_idx)
+        # 给 decode 时还未出现的单词加上 mask
         trg_mask = get_pad_mask(trg_seq, self.trg_pad_idx) & get_subsequent_mask(trg_seq)
 
         enc_output, *_ = self.encoder(src_seq, src_mask)
